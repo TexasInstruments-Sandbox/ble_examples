@@ -37,6 +37,22 @@ If you have any questions please refer to the [FAQ page](docs/faq.md).
     </tr>
     <tr>
       <td>
+        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40.02">TI SimpleLink Low Power F3 SDK 7.40.02.00</a>
+      </td>
+      <td>
+        <ul>
+          <li>BLE 32 Connection Peripheral</li>
+          <li>Data Stream UART over BLE example</li>
+          <li>Basic BLE GATT Client example</li>
+          <li>UART RF Carrier Wave example</li>
+          <li>BLE Event Logger example</li>
+          <li>DataStream RTC broadcaster example</li>
+          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
         <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40.01">TI SimpleLink Low Power F3 SDK 7.40.01.00</a>
       </td>
       <td>
@@ -290,9 +306,12 @@ The numbering scheme is in the form of M.mm.pp.bb. The fields pp.bb are incremen
 as GitHub examples are released, M.mm will map a GitHub release to a SimpleLink
 SDK release.
 
+### SimpleLink Low Power F3 SDK Examples 7.40.00.02
+Addition of BLE Event Logger and RTC broadcaster examples
+
 ### SimpleLink Low Power F3 SDK Examples 7.40.00.00
 Update of the examples for SimpleLinK Low Power F3 SDK (CC23XX) & Serial Boot Loader tool.
-Addition of UART 
+Addition of UART over BLE example
 
 ### 7.20.00.00
 First release of the examples for SimpleLinK Low Power F3 SDK (CC23XX) & Serial Boot Loader tool.
@@ -359,7 +378,7 @@ related to the ble_examples repo.
 The following reference pages may be helpful during general Bluetooth Low
 Energy development. New users of the SimpleLink Low Power F3 platform and Bluetooth
 5 development are encouraged to read the
-[BLE5-Stack User's Guide](https://dev.ti.com/tirex/content/simplelink_lowpower_f3_sdk_7_20_00_29/docs/ble5stack/ble_user_guide/html/ble-stack-5.x-guide/index-cc23xx.html).
+[BLE5-Stack User's Guide](https://dev.ti.com/tirex/content/simplelink_lowpower_f3_sdk_7_40_00_64/docs/ble5stack/ble_user_guide/html/ble-stack-5.x-guide/index-cc23xx.html).
 
 As an additional resource, users are encouraged to complete the
 [SimpleLink Academy](https://dev.ti.com/tirex/explore/node?node=A__AEaxXmSXZjp24G7-XUfwSQ__SIMPLELINK-ACADEMY-CC23XX__gsUPh5j__LATEST)
