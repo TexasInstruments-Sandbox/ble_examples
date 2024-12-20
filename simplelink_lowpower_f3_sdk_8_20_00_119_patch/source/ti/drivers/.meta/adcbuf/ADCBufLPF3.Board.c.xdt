@@ -1,0 +1,187 @@
+%%{
+    /*
+     * Copyright (c) 2023-2024, Texas Instruments Incorporated - http://www.ti.com
+     * All rights reserved.
+     *
+     * Redistribution and use in source and binary forms, with or without
+     * modification, are permitted provided that the following conditions
+     * are met:
+     *
+     * *  Redistributions of source code must retain the above copyright
+     *    notice, this list of conditions and the following disclaimer.
+     *
+     * *  Redistributions in binary form must reproduce the above copyright
+     *    notice, this list of conditions and the following disclaimer in the
+     *    documentation and/or other materials provided with the distribution.
+     *
+     * *  Neither the name of Texas Instruments Incorporated nor the names of
+     *    its contributors may be used to endorse or promote products derived
+     *    from this software without specific prior written permission.
+     *
+     * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+     * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+     * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+     * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+     * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+     * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+     * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+     * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+     * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+     * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+     * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+     *
+     */
+
+    /*
+    *  ======== ADCLPF3.Board.c.xdt ========
+    */
+
+    /* passed by /ti/drivers/templates/Board.c.xdt */
+    let ADCBuf = args[0];
+    let ADCLPF3Channel = system.modules["/ti/drivers/adc/ADCLPF3Channel"];
+    let instances = ADCBuf.$instances;
+    if (instances.length == 0) return;
+
+    /* Get Common /ti/drivers utility functions */
+    let Common = system.getScript("/ti/drivers/Common.js");
+    let devId = system.deviceData.deviceId;
+    let devicesDir = Common.device2DevicesDir(devId);
+
+    let declarations = Common.genBoardDeclarations(instances);
+
+    /* CONFIG_XXXCOUNT string, derived from defaultInstanceName */
+    let countDef = ADCBuf.defaultInstanceName + "COUNT";
+
+    let fixedAuxDmaChannelNumber = 7;
+
+    if (devId.match(/CC27../))
+    {
+        fixedAuxDmaChannelNumber = 11;
+    }
+
+%%}
+/*
+    *  =============================== ADCBuf ===============================
+    */
+
+#include <ti/drivers/GPIO.h>
+#include <ti/drivers/ADCBuf.h>
+#include <ti/drivers/adcbuf/ADCBufLPF3.h>
+#include <ti/drivers/dma/UDMALPF3.h>
+#include <ti/devices/`devicesDir`/inc/hw_evtsvt.h>
+#include <ti/devices/`devicesDir`/inc/hw_memmap.h>
+
+#define `countDef` `instances.length`
+
+% for (let i = 0; i < instances.length; i++) {
+%   let inst = instances[i];
+%   let dataDmaChannelDevicePinName = inst.adc.dataDmaChannel.$solution.devicePinName;
+%   let dataDmaChannelNumber = dataDmaChannelDevicePinName.slice(6, dataDmaChannelDevicePinName.length);
+%   let auxDmaChannelNumber = fixedAuxDmaChannelNumber;
+
+ALLOCATE_CONTROL_TABLE_ENTRY(dmaChannel`dataDmaChannelNumber`ControlTableEntry, `dataDmaChannelNumber` + UDMA_PRI_SELECT);
+ALLOCATE_CONTROL_TABLE_ENTRY(dmaChannel`dataDmaChannelNumber`AltControlTableEntry, `dataDmaChannelNumber` + UDMA_ALT_SELECT);
+
+%   /* Only allocate auxiliary DMA channel once, since it is hard coded to channel fixedAuxDmaChannelNumber */
+%   if (i == 0) {
+ALLOCATE_CONTROL_TABLE_ENTRY(dmaChannel`auxDmaChannelNumber`ControlTableEntry, `auxDmaChannelNumber` + UDMA_PRI_SELECT);
+%   }
+% }
+
+/*
+ *  ======== ADCBufLPF3_objects ========
+ */
+ADCBufLPF3_Object ADCBufLPF3_objects[`countDef`];
+
+/*
+ *  ======== ADCBuf Channel Lut ========
+ */
+% let externalReference = new Array();
+% for (let i = 0; i < instances.length; i++) {
+    % let inst = instances[i];
+    % let numChannels = inst.adcChannels.length;
+const ADCBufLPF3_AdcChannelLutEntry ADCBufLPF3_channelLut`inst.$name`[`numChannels`] = {
+    % for (let channel of inst.adcChannels) {
+
+        % if (channel.externalReference)
+        % {
+        %    /* It is assumed that the external reference is the same for all
+        %     * channels using an external reference.
+        %     */
+        %    externalReference[i] = channel.externalReference;
+        % }
+        %
+        % let channelInfo = ADCLPF3Channel._getChannelInfo(channel);
+    /* `channel.$name` */
+    { 
+        .refVoltage      = `channelInfo.refVoltage`,
+        .adcInputDIO     = `channelInfo.inputPin`,
+        .internalChannel = `channelInfo.adcChannel`,
+        .refSource       = `channelInfo.refSource`,
+    },
+    % }
+};
+
+% }
+
+/*
+ *  ======== ADCBufLPF3_hwAttrs ========
+ */
+const ADCBufLPF3_HWAttrs ADCBufLPF3_hwAttrs[`countDef`] = {
+% for (let i = 0; i < instances.length; i++) {
+%   let inst = instances[i];
+%   let dataDmaChannelDevicePinName = inst.adc.dataDmaChannel.$solution.devicePinName;
+%   let dataDmaChannelNumber = dataDmaChannelDevicePinName.slice(6, dataDmaChannelDevicePinName.length);
+%   let auxDmaChannelNumber = fixedAuxDmaChannelNumber;
+    /* `inst.$name` */
+%   if (inst.$hardware) {
+%       if (inst.$hardware.displayName) {
+    /* `inst.$hardware.displayName` */
+%       }
+%   }
+    {
+        .dataDmaTableEntryPri = &dmaChannel`dataDmaChannelNumber`ControlTableEntry,
+        .dataDmaTableEntryAlt = &dmaChannel`dataDmaChannelNumber`AltControlTableEntry,
+        .auxDmaTableEntryPri  = &dmaChannel`auxDmaChannelNumber`ControlTableEntry,
+        .adcChannelLut        = ADCBufLPF3_channelLut`inst.$name`,
+        .resolutionBits       = `inst.resolution`,
+        .dataDmaChannelMask   = UDMA_CHANNEL_`dataDmaChannelNumber`_M,
+        .auxDmaChannelMask    = UDMA_CHANNEL_`auxDmaChannelNumber`_M,
+        .dataDmaEvtReg        = EVTSVT_BASE + EVTSVT_O_DMACH`dataDmaChannelNumber`SEL,
+        .auxDmaEvtReg         = EVTSVT_BASE + EVTSVT_O_DMACH`auxDmaChannelNumber`SEL,
+        .dataDmaEvtMux        = EVTSVT_DMACH`dataDmaChannelNumber`SEL_IPID_ADC0TRG,
+        .auxDmaEvtMux         = EVTSVT_DMACH`auxDmaChannelNumber`SEL_PUBID_ADC_COMB,
+        .intPriority          = `Common.intPriority2Hex(inst.interruptPriority)`,
+%   if (externalReference[i]) {
+        .adcRefPosDIO         = `externalReference[i].adcRefPInstance.$name`,
+        .adcRefNegDIO         = `externalReference[i].adcRefNInstance.$name`,
+%   } else {
+        .adcRefPosDIO         = GPIO_INVALID_INDEX,
+        .adcRefNegDIO         = GPIO_INVALID_INDEX,
+%   }
+    },
+% }
+};
+
+/*
+ *  ======== ADCBuf_config ========
+ */
+const ADCBuf_Config ADCBuf_config[`countDef`] = {
+% for (let i = 0; i < instances.length; i++) {
+    % let inst = instances[i];
+    /* `inst.$name` */
+    % if (inst.$hardware) {
+    %    if (inst.$hardware.displayName) {
+    /* `inst.$hardware.displayName` */
+    %    }
+    % }
+    {
+        .fxnTablePtr    = &ADCBufLPF3_fxnTable,
+        .object         = &ADCBufLPF3_objects[`inst.$name`],
+        .hwAttrs        = &ADCBufLPF3_hwAttrs[`inst.$name`]
+    },
+% }
+};
+
+`declarations`
+const uint_least8_t ADCBuf_count = `countDef`;

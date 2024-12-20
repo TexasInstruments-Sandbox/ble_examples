@@ -1,388 +1,159 @@
-## Table of Contents
+Smart Remote Control (SRC) - SW Reference Design
+================================================
 
-* [Navigating the Repository](#navigating-the-repository)
-* [Change Log](#change-log)
-* [Installation](#installation)
-* [Required Tools](#required-tools)
-* [Examples List](#examples--demo-list)
-* [Tools](#tools)
-* [References](#references)
-* [FAQ](docs/faq.md)
-* [Versioning BLE-Stack Projects](docs/suggested_workflow.md)
+Functionalities
+---------------
 
-# Introduction
+The following features have been implemented and tested using the ONN Android receiver.
 
-This repository contains *Bluetooth&reg; Low Energy* & *Proprietary RF* sample applications for
-Texas Instruments' SimpleLink CC13xx / CC26xx SDK, SimpleLink CC2640R2 SDK, and SimpleLink Low Power F3 SDK.
+   1. **BLE Connection, Pairing and Bonding:**
+      - Implementation of Advertisement with BLE standard UUIDs that are recognized by the Android receiver to start connection/paring/bonding process.
+      - Implementation of Directed Adv with peer address saved while bonding (re-connection is faster with Directed Advertisement) - all the re-connections after the bonding will be done with Directed Adv.
+   2. **BLE Device Identification Service:**
+      - Implementation of Device ID BLE service: device type, name, VID/PID, as well as SW, FW and HW versions are available as GATT characteristics.
+      - Verified that ID BLE service is recognized by Android TV receiver and the characteristics values shown.
+   3. **BLE Battery Monitoring:**
+      - Implementation of battery monitoring using the Battery Monitor driver.
+      - Implementation of Battery monitoring BLE service.
+      - Verified that Battery Service is detectable by Android TV receiver and percentage value of power consumption updates accordingly.
+   4. **Dual-Image BLE OAD support:**
+      - Implementation of Dual-Image OAD service for over the air firmware update.
+      - Verified that OAD firmware update is successfully done using Simple Link Connect Mobile App.
+   5. **BLE Human Interface Device (HID):**
+      - Implementation of BLE HID service using Android spec for expected characteristic values.
+      - Implementation of database table with Android spec HID key UUID codes.
+      - Verified that HID key codes are send when keys are physically pressed at the RC.
+      - Verified that HID key command are recognized by Android receiver.
+   6. **Audio over BLE:**
+      - Implementation of Audio BLE service using Android spec for expected characteristic values.
+      - Implementation of audio start/stop notification values.
+      - Implementation of DMIC Audio: pdm data fetching (SPI), pdm to pcm, decimation and filtering (16KHz - 16-bit integer), compression (adpcm/msbc support), BLE transmission through notification.
+      - Implementation of AMIC Audio: data fetching (ADC/DMA), filtering (16KHz - 16-bit integer), compression (adpcm/msbc support), BLE transmission through notification.
+      - Verified that audio quality meets specs: SNR > 30 dB and THD < 5% at 1KHz (measured at receiver side - not using Android receiver).
+      - Verified that audio can be transmitted within 10-meter line of sight distance.
+      - Verified that audio is properly understood by speech to text assistant Android engine.
+   7. **Infrared (IR) support with NEC standard:**
+      - Implementation of IR NEC standard driver.
+      - Implementation of database table with Android spec IR key codes.
+      - Verified that IR key codes are send when keys are physically pressed at the RC using a logic analyzer.
+   8. **Infrared (IR) External NVS Database:**
+      - Implementation of function to write IR codes into external flash.
+      - Implementation of function to read IR codes from external flash.
+   9. **LED Behavior:**
+      - Implementation of LED color behavior based on spec: Orange for IR (no BLE connection), Red for non-secure BLE connection (no pairing and bonding), Green for secure BLE connection (device is bonded).
+   10. **Power Consumption Optimization:**
+      - Implementation of Shutdown and key interrupt wake-up: after the RC device has connected to the ONN Android receiver, if no keys are pressed for more than 15 minutes, then the RC device will issue a disconnection and go to shut down. Pressing any key will wake up the device which will connect automatically with the ONN Android receiver.
+      - Implementation of Limited Advertising: Once the device has woke up, it will advertise only for 15 minutes before going to shut down. Pressing any key will wake up the device which will start again advertising.
+      - Implementation of Connection Latency: when the peripheral has nothing to send to the central, it will skip 200 events * 11,25 ms of conn interval = 2.2 seconds of standby between connection events.
 
-These examples  are each hosted on different branches of this repo. Please reference the table below to find examples for each of these SDKs.
+Known Issues and Limitations
+----------------------------
 
-These examples have not been validated as production-ready.
+   1. If OAD is done using Simple Link Connect mobile app and the device bonds first, the operation will fail (OAD stops suddenly during update).
+   2. If *devInfoServGenericAcc* UUID and its characteristics are included in the GATT table, then it is not possible to see all the services using Simple Link Connect mobile app. Therefore, those characteristics are currently commented out from the *devInfoAttrTbl* inside *dev_info_service.c* to test OAD using the mobile app.
+   3. All re-connections between RC and ONN Android receiver after the bonding will be done with Directed Adv. However, the device should go back to Undirected Adv when the bond is erased from the central and when the HOME + BACK keys are pressed (this functionality has not been implemented so far).
+   4. The functionality of the key that is pressed to wake up the RC is currently lost (as the action of pressing the key is only used to wake up the RC), therefore the user will have to press two times the same button if it wants the functionality of the key to work.
+   5. The RC device takes around 4 seconds to be responsive again. This is mainly due to the rebooting process and the MCUBoot being in debug mode.
+   6. Some special HID keys do not generate the desired answer from the ONN receiver, this needs to be checked with the provider as we have verified that different Android compliant RCs do have the same limitation which would suggest a special nonstandard protocol is implemented on the Android receiver. The keys are: YouTube, Netflix, App03, App04, Settings, Profile. If the Vol +, Vol - and Mute buttons do not work as expected, please make sure to take a look at the buttons configuration inside the ONN Bluetooth settings. To check this, go to Bluetooth settings and select "Set up remote buttons" and select "onn. 4K Streaming Box" for Volume Control.
+   7. There is no standardized OAD service defined for the Android Receiver (Android spec only provides recommendation of what should be provided by the vendor). The ODA Dual Image distributor implementation has to be presented to Google so that they can add support for it.
+   8. Missing Infrared (IR) testing on TV receiver.
+   9. Missing multiple key-detection implementation.
 
-**Do not** use GitHub's bug tracking feature for support. For inquiries, see the
-[Bluetooth&reg; low energy Forum](https://e2e.ti.com/support/wireless_connectivity/bluetooth_low_energy/f/538)
-and the [Other Wireless Technologies Forum](https://e2e.ti.com/support/wireless-connectivity/other-wireless-group/other-wireless/f/other-wireless-technologies-forum).
+Quick Demo Guide
+----------------
 
-To use the examples and tools in this repository, please download and install
-the relevant SDK listed in a given branch **first**, and if necessary obtain the required evaluation kit:
+If you are looking for a quick demo test, please do the following:
 
-If you have any questions please refer to the [FAQ page](docs/faq.md).
+1. Download/Clone the repository.
+2. Go to the *Demo* folder.
+3. If you want to test the AMIC implementation, use the *xxx_AMIC_v1.bin* file.
+4. If you want to test the DMIC implementation, use the *xxx_DMIC_v1.bin* file.
+5. For either of the Audio implementations, use the *mcuboot_dual_image_LP_EM_CC2340R5_nortos_ticlang.hex*.
+6. Open *UNIFLASH* and load the *mcuboot_dual_image_LP_EM_CC2340R5_nortos_ticlang.hex* file and load the *smart_remote_control_digital_LP_EM_CC2340R5_v1.bin* selecting the **load address = 0x00006000**.
+7. Connect the cc23xx TI-RC board using a XDS110 probe and flash it.
+8. Power cycle the board (disconnect and connect the XDS cable) - Important not to forget this step.
+9. Power on the ONN Android TV receiver, the RC should connect automatically. If this does not happen, to re-pair press the button for 15 seconds in the back of the ONN receiver until the device starts scanning for RCs.
+10. The ONN receiver will connect, pair, and bond to the RC device with default name: ONN-Remote.
+11. Browse the ONN user interface using the keys. Just make sure the following buttons work: Center, Left, Up, Right, Down, Home, Back, Power, Mute. In addition, the LED should turn green when pressed.
+12. Press and hold the Assistant Key (Audio) while speaking and verify that what you said is prompted in the TV interface.
 
+*Note:* During a connection, if no keys are pressed for more than 15 minutes, then the RC device will issue a disconnection and go to shut down. Pressing any key from the RC will wake up the device which will connect automatically with the ONN Android receiver. Please be aware that the RC device takes around 4 seconds to be responsive again. This is mainly due to the rebooting process which needs to be optimized. During advertising, the device will always advertise only for 90 seconds before going to shut down. Pressing any key will wake up the device which will start again advertising.
 
-<table>
-  <tbody>
-    <tr>
-      <th width = 50%>SDK</th>
-      <th>Examples</th>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40.03">TI SimpleLink Low Power F3 SDK 7.40.03.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>BLE 32 Connection Peripheral</li>
-          <li>Data Stream UART over BLE example</li>
-          <li>Basic BLE GATT Client example</li>
-          <li>UART RF Carrier Wave example</li>
-          <li>BLE Event Logger example</li>
-          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40.01">TI SimpleLink Low Power F3 SDK 7.40.01.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>BLE 32 Connection Peripheral</li>
-          <li>Data Stream UART over BLE example</li>
-          <li>Basic BLE GATT Client example</li>
-          <li>UART RF Carrier Wave</li>
-          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13xx_26xx_sdk-7.10">TI SimpleLink CC13xx / CC26xx SDK 7.10.00.98</a>
-      </td>
-      <td>
-        <ul>
-          <li>BLE 32 Connection Central</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40">TI SimpleLink Low Power F3 SDK 7.40.00.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>Data Stream UART over BLE example</li>
-          <li>Basic BLE GATT Client example</li>
-          <li>UART RF Carrier Wave</li>
-          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.20">TI SimpleLink Low Power F3 SDK 7.20.00.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>Data Stream UART over BLE example</li>
-          <li>Basic BLE GATT Client example</li>
-          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13xx_26xx_sdk-6.40">TI SimpleLink CC13xx / CC26xx SDK 6.4x.xx.xx</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket (for CC2651R3SIPA only)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13x2_26x2_sdk-5.10">TI SimpleLink CC13x2 / CC26x2 SDK 5.10.00.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket</li>
-          <li>Bluetooth 5 Throughput Demo</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13xx_26xx_sdk-4.10">TI SimpleLink CC13x2 / CC26x2 SDK 4.10.00.00</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket</li>
-          <li>Bluetooth 5 Throughput Demo</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13xx_26xx_sdk-3.20">TI SimpleLink CC13x2 / CC26x2 SDK 3.20.00.67</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket</li>
-          <li>Bluetooth 5 Throughput Demo</li>
-          <li>Tree Structure Network</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc13xx_26xx_sdk-2.40">TI SimpleLink CC13x2 / CC26x2 SDK 2.40.00.81</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc26x2_sdk-2.30">TI SimpleLink CC26x2 SDK 2.30.00.34</a>
-      </td>
-      <td>
-        <ul>
-          <li>Full Duplex Bidirectional Audio Demo (Central/Peripheral)</li>
-          <li>I2S Echo</li>
-          <li>Serial Port Profile</li>
-          <li>Bluetooth 5 Throughput Demo</li>
-          <li>Tree Structure Network</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc26x2_sdk-2.10">TI SimpleLink CC26x2 SDK 2.10.00.44</a>
-      </td>
-      <td>
-        <ul>
-          <li>Full Duplex Bidirectional Audio Demo (Central/Peripheral)</li>
-          <li>I2S Echo</li>
-          <li>Serial Port Profile</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_sdk-1.60">TI SimpleLink CC26x2 SDK 1.60.00.43</a>
-      </td>
-      <td>
-        <ul>
-          <li>Full Duplex Bidirectional Audio Demo (Central/Peripheral)</li>
-          <li>I2S Echo</li>
-          <li>Serial Port Profile</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_cc2640r2_sdk-2.20">TI SimpleLink CC2640R2 SDK 2.20.00.49</a>
-      </td>
-      <td>
-        <ul>
-          <li>Simple Serial Socket</li>
-          <li>Micro BLE Stack Broadcaster Observer</li>
-          <li>Bidirectional Audio</li>
-          <li>Simple Peripheral Observer</li>
-          <li>Apple Notification Center Service</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_sdk-1.50">TI SimpleLink CC2640R2 SDK 1.50.00.58</a>
-      </td>
-      <td>
-        <ul>
-          <li>Micro BLE Stack Broadcaster + Observer</li>
-          <li>Full Duplex Bidirectional Audio Demo</li>
-          <li>Serial Port Profile</li>
-          <li>Simple Peripheral Observer BLE</li>
-          <li>Apple Notification Center Service</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_sdk-1.40">TI SimpleLink CC2640R2 SDK 1.40.00.45</a>
-      </td>
-      <td>
-        <ul>
-          <li>Full Duplex Bidirectional Audio Demo</li>
-          <li>Bluetooth 5 Throughput Demo</li>
-          <li>Bluetooth 5 Long Range Demo</li>
-          <li>Serial Port Profile</li>
-          <li>Simple Peripheral Observer BLE</li>
-          <li>Apple Notification Center Service</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_sdk-1.35">TI SimpleLink CC2640R2 SDK 1.35.00.33</a>
-      </td>
-      <td>
-        <ul>
-          <li>Bluetooth 5 Throughput Demo</li>
-          <li>Bluetooth 5 Long Range Demo</li>
-          <li>Serial Port Profile</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/ble_examples-2.2">TI BLE-Stack SDK v2.2.x</a>
-      </td>
-      <td>
-        <ul>
-          <li>beacon_rfdriver</li>
-          <li>hid_adv_remote_privacy</li>
-          <li>hid_emu_kbd</li>
-          <li>multi_role</li>
-          <li>security_examples</li>
-          <li>simple_beacon</li>
-          <li>simple_central_lp</li>
-          <li>simple_central_audio_receiver</li>
-          <li>simple_peripheral_audio_transmitter</li>
-          <li>simple_eddystone</li>
-          <li>simple_peripheral_observer</li>
-          <li>simple_proprietary_beacon</li>
-          <li>spp_over_ble</li>
-          <li>throughput_example</li>
-          <li>serial_bootloader</li>
-          <li>central_to_multiperipheral</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <a href = "https://github.com/TexasInstruments/ble_examples/tree/ble_examples-2.1">TI BLE-Stack SDK v2.1.x</a>
-      </td>
-      <td>
-        <ul>
-          <li>SimpleAP</li>
-          <li>SimpleNP</li>
-          <li>MultiRole</li>
-          <li>SimpleBLEPeripheral: LCD to UART</li>
-          <li>SimpleBLEPeripheral: porting to TI-RTOS 2.15</li>
-          <li>Apple Notification Center Service</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
+Quick Dev Guide
+---------------
 
-# Navigating the Repository
+If you are looking to build the project from CCS, please do the following:
 
-The examples provided on this GitHub page serve as a plugin to a corresponding
-BLE-Stack SDK release. The master branch will always point to the latest release.
+1. Download/Clone the repository.
+2. Install the simplelink_lowpower_f3_sdk_8_20_00_119 SDK from ti.com
+3. Drag and drop the contents inside the simplelink_lowpower_f3_sdk_8_20_00_119_patch folder to the root of the simplelink_lowpower_f3_sdk_8_20_00_119
+   install directory (default installation location is c/ti/simplelink_lowpower_f3_sdk_8_20_00_119). Overwrite any file conflicts with the contents inside
+   the simplelink_lowpower_f3_sdk_8_20_00_119_patch folder.
+   * Skipping this patch will result in a SysConfig build failure. Ensure you patch your local 8.20 SDK with the patch contents.
+4. In order to enable/disable AMIC or DMIC audio solutions, please use the Compiler pre-define symbols inside the project Properties: ``USE_AMIC`` or ``USE_DMIC``. Please be aware that both should not be enabled at the same time.
+5. In order to enable/disable the AMIC or DMIC Filters, please use the Compiler pre-define symbols inside the project Properties: ``USE_ANALOG_FILTER`` or ``USE_DIGITAL_FILTER_1`` and ``USE_DIGITAL_FILTER_2``. Please be aware that both should not be enabled at the same time.
+6. In order to enable/disable the ADPCM or MSBC codec, please use the Compiler pre-define symbols inside the project Properties: ``USE_ADPCM_CODEC`` or ``USE_MSBC_CODEC``. Please be aware that both should not be enabled at the same time and that Android compliant TV only support ADPCM codec.
+7. In order to enable/disable OAD Dual-image, please use the following *.cmd* file: cc23x0_app_freertos_OAD.cmd and make sure you exclude from build the cc23x0_app_freertos_no_OAD.cmd file. Follow the Section below for further details on how to ``Enable OAD``.
+8. After development/modifications to the project, please make sure to execute the steps described below in **Workflow**.
 
-Older releases can be accessed by checking out/downloading their corresponding
-branch. For more information on supported examples
-please consult the readme.md of the desired branch/release.
+Computing Requirements
+----------------------
 
-## Change Log
+**DMIC Solution:**
+   - MCUBoot Flash size: 24.83 KB
+   - RC Application Flash size: 200 KB
+   - NVS Bonds Flash size: 16.38 KB
+   - Total Flash size for Dual-Image OAD: 439.22 KB
+   - Total RAM size: 33 KB
 
-Note: The version numbers below are related to GitHub ble_examples releases.
-The numbering scheme is in the form of M.mm.pp.bb. The fields pp.bb are incremented
-as GitHub examples are released, M.mm will map a GitHub release to a SimpleLink
-SDK release.
+**AMIC Solution:**
+   - MCUBoot Flash size: 24.83 KB
+   - RC Application Flash size: 200 KB
+   - NVS Bonds Flash size: 16.38 KB
+   - Total Flash size for Dual-Image OAD: 441.22 KB
+   - Total RAM: 31 KB
 
-### SimpleLink Low Power F3 SDK Examples 7.40.00.03
-Addition of BLE Event Logger example
+Workflow
+--------
 
-### SimpleLink Low Power F3 SDK Examples 7.40.00.00
-Update of the examples for SimpleLinK Low Power F3 SDK (CC23XX) & Serial Boot Loader tool.
-Addition of UART over BLE example
+If you are working on the RC development, please take a look at the following:
 
-### 7.20.00.00
-First release of the examples for SimpleLinK Low Power F3 SDK (CC23XX) & Serial Boot Loader tool.
+Functional Regression Tests:
 
-### 6.40.00.00
-First release of the examples for CC2651R3SIPA.
+To make sure we are not breaking other main functionalities of the SRC project while implementing new features or debugging.
+Please make sure to execute the next list of steps. You will need the SRC custom board, an Android TV receptor with internet connection (ONN TV for instance).
 
-### 5.10.00.00
-Update of the examples to CC13x2 / CC26x2 SDK 5.10.00.00.
-Only supports CC26x2R1.
+   1. Build and flash the project (make sure you are using the cc23x0_app_freertos_no_OAD.cmd for no OAD).
+   2. Search for Bluetooth devices in the Android TV receiver using the ONN remote control to go to settings.
+   3. Connect, pair, and bond to the device with default name: TI-RemoteControl.
+   4. Browse the UI using the keys. Just make sure the following buttons work: Center, Left, Up, Right, Down, Home, Back, Power, Mute. In addition, the LED should turn green when pressed.
+   5. Press and hold the Assistant Key (Audio) while speaking and verify that what you said is correctly prompted in the TV interface.
+   6. Verify that the device is able to go to Standby using EnergyTrace.
 
-### 4.10.00.00
-Update of the examples to CC13x2 / CC26x2 SDK 4.10.00.00.
-First release of the examples for CC1352R1.
+**Once you have completed successfully the steps, you can safely commit your changes.**
 
-### 3.20.00.00
-Initial offering of SimpleLink CC13x2 / CC26x2 SDK 3.20.00.67 examples, 
-supporting the rev. E of the SimpleLinkCC26x2 and CC13x2 MCUs.
+Enable OAD
+----------
 
-### 2.40.00.00
-Initial offering of SimpleLink CC13x2 / CC26x2 SDK 2.40.00.81 examples.
+In order to flash and debug the *smart_remote_control_digital_LP_EM_CC2340R5* project with OAD, please use the following *.cmd* file: cc23x0_app_freertos_OAD.cmd and make sure you exclude from build the cc23x0_app_freertos_no_OAD.cmd file.
 
-## Installation
+Functional Regression Tests - OAD included:
 
-This repository can be cloned and tracked using Git. For instructions on how to
-clone a repository from GitHub please refer to this guide:
-[Clone from GitHub](https://help.github.com/articles/cloning-a-repository/)
+To make sure we are not breaking other main functionalities of the SRC project while implementing new features or debugging.
+Please make sure to execute the next list of steps. You will need the SRC custom board, an Android TV receptor with internet connection (ONN TV for instance), and a mobile phone with the Simple Link connect app for the OAD process.
 
-For users who are unfamiliar with Git, there is the option of downloading the
-contents of the repository as a zip file. See instructions below.
+   1. Build the project.
+   2. Flash the *mcuboot_dual_image_LP_EM_CC2340R5_nortos_ticlang.hex* file and *smart_remote_control_digital_LP_EM_CC2340R5_v1.bin* (load address = 0x00006000) file program into the SRC custom board.
+   3. Power cycle the board (disconnect and connect the XDS cable).
+   4. Search for Bluetooth devices in the Android TV receiver using the ONN remote control to go to settings.
+   5. Connect, pair, and bond to the device with default name: TI-RemoteControl.
+   6. Browse the UI using the keys. Just make sure the following buttons work: Center, Left, Up, Right, Down, Home, Back, Power, Mute. In addition, the LED should turn green when pressed.
+   7. Press and hold the Assistant Key (Audio) while speaking and verify that what you said is correctly prompted in the TV interface.
+   8. Disconnect from Android TV receiver using the ONN remote control to go to settings.
+   9. Use the Simple Link App to search for the device and connect to it.
+   10. Go to the OAD service, load the *smart_remote_control_digital_LP_EM_CC2340R5_v2.bin* file (modify the Advertisement device name using SysConfig -> BLE -> General Configuration) and start the OAD process. It should take less than 60 seconds to complete.
+   11. Once the image has been downloaded and the OAD process ends successfully, disconnect from the device.
+   12. Run all the steps from 5 to 8 again. You should verify that the device is now advertising with the new Advertisement Device Name you set for the _v2.bin file.
+   13. Verify that the device is able to go to Standby using EnergyTrace.
 
-1. Click the green "Clone or download" button
-1. Select "Download ZIP" option
-1. Zip folder will appear in your Downloads folder
-
-This repository can be cloned/download anywhere on your computer. There is a
-dependency between this repository and the SimpleLink CC26x2 SDK install
-location.
-
-By default, your chosen SDK will install to ``C:\ti\``
-
-If the SimpleLink SDK must be installed to a different location, 
-then see the [FAQ page](docs/faq.md) for IDE specific instructions for changing
-environment variables.
-
-## Required Tools
-
-Similar to the SimpleLink SDK, the examples in this repository 
-support the CCS and IAR toolchains (not for all the examples).
-Please pay careful attention to versions of these tools, please refer to the
-release notes for supported versions.
-
-For more information on toolchain setup, please refer to our
-[FAQ page](docs/faq.md).
-
-## FAQ
-
-The [FAQ page](docs/faq.md) will try to address some of the common questions
-related to the ble_examples repo.
-
-
-## References
-
-The following reference pages may be helpful during general Bluetooth Low
-Energy development. New users of the SimpleLink Low Power F3 platform and Bluetooth
-5 development are encouraged to read the
-[BLE5-Stack User's Guide](https://dev.ti.com/tirex/content/simplelink_lowpower_f3_sdk_7_40_00_64/docs/ble5stack/ble_user_guide/html/ble-stack-5.x-guide/index-cc23xx.html).
-
-As an additional resource, users are encouraged to complete the
-[SimpleLink Academy](https://dev.ti.com/tirex/explore/node?node=A__AEaxXmSXZjp24G7-XUfwSQ__SIMPLELINK-ACADEMY-CC23XX__gsUPh5j__LATEST)
-training.
-
-Other resources can be found below:
-
-* [BLE E2E Page](www.ti.com/ble-forum)
+**Once you have completed successfully the steps, you can safely commit your changes.**
