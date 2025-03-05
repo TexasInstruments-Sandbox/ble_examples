@@ -37,6 +37,21 @@ If you have any questions please refer to the [FAQ page](docs/faq.md).
     </tr>
     <tr>
       <td>
+        <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-8.40">TI SimpleLink Low Power F3 SDK 8.40.00.00</a>
+      </td>
+      <td>
+        <ul>
+          <li>BLE 32 Connection Peripheral</li>
+          <li>Data Stream UART over BLE example</li>
+          <li>Basic BLE GATT Client example</li>
+          <li>UART RF Carrier Wave example</li>
+          <li>BLE Event Logger example</li>
+          <li>Serial Boot Loader Tool v1.0.0 (SDK version independent)</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
         <a href = "https://github.com/TexasInstruments/ble_examples/tree/simplelink_low_power_f3_sdk-7.40.03">TI SimpleLink Low Power F3 SDK 7.40.03.00</a>
       </td>
       <td>
@@ -304,6 +319,9 @@ Note: The version numbers below are related to GitHub ble_examples releases.
 The numbering scheme is in the form of M.mm.pp.bb. The fields pp.bb are incremented
 as GitHub examples are released, M.mm will map a GitHub release to a SimpleLink
 SDK release.
+
+### SimpleLink Low Power F3 SDK Examples 8.40.00.00
+Update of the examples for SimpleLinK Low Power F3 SDK (CC23XX) & Serial Boot Loader tool.
 
 ### SimpleLink Low Power F3 SDK Examples 7.40.00.03
 Addition of BLE Event Logger example
